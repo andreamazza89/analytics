@@ -30,7 +30,7 @@ defmodule PlausibleWeb.SiteController do
           order_by: s.domain,
           preload: [memberships: sm]
         )
-      ) |> Enum.map(sites, &(%{domain: &1.domain, canAccessSettings: List.first(&1.memberships).role != :viewer}))
+      )
 
     user_owns_sites =
       Enum.any?(sites, fn site -> List.first(site.memberships).role == :owner end) ||
@@ -41,7 +41,7 @@ defmodule PlausibleWeb.SiteController do
 
     render(conn, "index.html",
       invitations: invitations,
-      sites: sites,
+      sites: Enum.map(sites, &(%{domain: &1.domain, canAccessSettings: List.first(&1.memberships).role != :viewer})),
       visitors: visitors,
       needs_to_upgrade: user_owns_sites && Plausible.Billing.needs_to_upgrade?(user)
     )

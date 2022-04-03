@@ -1,5 +1,5 @@
 <script>
-    const SITES_PER_PAGE = 18;
+    const SITES_PER_PAGE = 3;
 
     function xVisitorsMessage(domain, visitors) {
       const nOfVisitors = visitors[domain] || '0'
@@ -13,51 +13,69 @@
         {
           totalPages,
           show: totalPages > 1,
-          currentPage: 1,
+          currentPageNumber: 1,
+          currentPage: sites.slice(0, SITES_PER_PAGE),
           isFirstPage: true,
-          isLastPage: false
+          isLastPage: false,
+          search: ''
         }
       )
     }
 
-    function xPreviousPage(pagination) {
-      const currentPage = pagination.currentPage - 1
-      const isFirstPage = currentPage === 1
+    function xPreviousPage(sites, pagination) {
+      const pageNumber = pagination.currentPageNumber - 1
+      return xGoToPage(sites, pagination, pageNumber)
+    }
+
+    function xNextPage(sites, pagination) {
+      const pageNumber = pagination.currentPageNumber + 1
+      return xGoToPage(sites, pagination, pageNumber)
+    }
+
+    function xGoToPage(sites, pagination, pageNumber) {
+      const page = xNthPage(xSearch(sites, pagination.search), pageNumber)
       return (
         { ...pagination,
-          currentPage,
-          isFirstPage,
-          isLastPage: false
+          currentPageNumber: pageNumber,
+          currentPage: page,
+          isFirstPage: pageNumber === 1,
+          isLastPage: pagination.totalPages === pageNumber
         }
       )
     }
 
-    function xNextPage(pagination) {
-      const currentPage = pagination.currentPage + 1
-      const isLastPage = pagination.totalPages === currentPage
-      return (
-        { ...pagination,
-          currentPage,
-          isFirstPage: false,
-          isLastPage
-        }
-      )
+    function xUpdateWithSearch(sites, pagination, search) {
+      const searchResult = xSearch(sites, search)
+      const totalPages = Math.floor(searchResult.length / SITES_PER_PAGE) + (searchResult.length % SITES_PER_PAGE === 0 ? 0 : 1)
+      return ({
+        ...pagination,
+        show: totalPages > 1,
+        totalPages,
+        currentPageNumber: 1,
+        currentPage: searchResult.slice(0, SITES_PER_PAGE),
+        isFirstPage: true,
+        isLastPage: false,
+        search: search
+      })
     }
 
-    function xCurrentPageItems(sites, pagination) {
-      const firstItemInPage = (pagination.currentPage - 1) * SITES_PER_PAGE
+    function xNthPage(sites, pageNumber) {
+      const firstItemInPage = (pageNumber - 1) * SITES_PER_PAGE
       return sites.slice(firstItemInPage, firstItemInPage + SITES_PER_PAGE)
+    }
+
+    function xSearch(sites, search) {
+      return search === '' ? sites : sites.filter(site => site.domain.includes(search))
     }
 </script>
 
-<div x-data="{
+<div x-cloak x-data="{
        selectedInvitation: null,
        invitationOpen: false,
        invitations: <%= Enum.map(@invitations, &({&1.invitation_id, &1})) |> Enum.into(%{}) |> Jason.encode! %>,
        sites: <%= @sites |> Jason.encode!()%>,
        visitors: <%= @visitors |> Jason.encode!()%>,
-       pagination: xInitPagination(<%= @sites |> Jason.encode!()%>),
-       searchTerm: ''
+       pagination: xInitPagination(<%= @sites |> Jason.encode!()%>)
      }"
      @keydown.escape.window="invitationOpen = false"
      class="container pt-6">
@@ -89,7 +107,15 @@
     <h2 class="text-2xl font-bold leading-7 text-gray-900 dark:text-gray-100 sm:text-3xl sm:leading-9 sm:truncate flex-shrink-0">
       My sites
     </h2>
-    <a href="/sites/new" class="button my-2 sm:my-0 w-auto">+ Add a website</a>
+    <div class="flex">
+        <input
+                @input="pagination = xUpdateWithSearch(sites, pagination, $event.target.value)"
+                type="text"
+                placeholder="search sites"
+                class="mr-3 pr-10 border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-200 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm rounded-md dark:bg-gray-900 dark:text-gray-300"
+        >
+        <a href="/sites/new" class="button my-2 sm:my-0 w-auto">+ Add</a>
+    </div>
   </div>
 
   <ul class="my-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -121,7 +147,7 @@
       </div>
     <% end %>
 
-    <template x-for="site in xCurrentPageItems(sites, pagination)" >
+    <template x-for="site in pagination.currentPage" >
       <div x-key="site.domain" class="relative">
           <a x-bind:href="`/${site.domain}`">
               <li class="col-span-1 bg-white dark:bg-gray-800 rounded-lg shadow p-4 group-hover:shadow-lg cursor-pointer">
@@ -150,15 +176,15 @@
       <div class="hidden sm:block">
           <p class="text-sm text-gray-700 dark:text-gray-300">
               Showing page
-              <span x-text="pagination.currentPage" class="font-medium"></span>
+              <span x-text="pagination.currentPageNumber" class="font-medium"></span>
               of
               <span x-text="pagination.totalPages" class="font-medium"></span>
               total
           </p>
       </div>
       <div class="flex-1 flex justify-between sm:justify-end">
-          <a x-on:click="pagination = xPreviousPage(pagination)" x-bind:disabled="pagination.isFirstPage" class="pagination-link relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white dark:bg-gray-100 hover:bg-gray-50 cursor-pointer">← Previous</a>
-          <a x-on:click="pagination = xNextPage(pagination)" x-bind:disabled="pagination.isLastPage" class="pagination-link ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white dark:bg-gray-100 hover:bg-gray-50 cursor-pointer">Next →</a>
+          <a x-on:click="pagination = xPreviousPage(sites, pagination)" x-bind:disabled="pagination.isFirstPage" class="pagination-link relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white dark:bg-gray-100 hover:bg-gray-50 cursor-pointer">← Previous</a>
+          <a x-on:click="pagination = xNextPage(sites, pagination)" x-bind:disabled="pagination.isLastPage" class="pagination-link ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white dark:bg-gray-100 hover:bg-gray-50 cursor-pointer">Next →</a>
       </div>
   </nav>
 

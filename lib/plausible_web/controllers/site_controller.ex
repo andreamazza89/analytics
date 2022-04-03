@@ -20,8 +20,8 @@ defmodule PlausibleWeb.SiteController do
 
     invitation_site_ids = Enum.map(invitations, & &1.site.id)
 
-    {sites, pagination} =
-      Repo.paginate(
+    sites =
+      Repo.all(
         from(s in Plausible.Site,
           join: sm in Plausible.Site.Membership,
           on: sm.site_id == s.id,
@@ -29,9 +29,8 @@ defmodule PlausibleWeb.SiteController do
           where: s.id not in ^invitation_site_ids,
           order_by: s.domain,
           preload: [memberships: sm]
-        ),
-        params
-      )
+        )
+      ) |> Enum.map(sites, &(%{domain: &1.domain, canAccessSettings: List.first(&1.memberships).role != :viewer}))
 
     user_owns_sites =
       Enum.any?(sites, fn site -> List.first(site.memberships).role == :owner end) ||
@@ -44,7 +43,6 @@ defmodule PlausibleWeb.SiteController do
       invitations: invitations,
       sites: sites,
       visitors: visitors,
-      pagination: pagination,
       needs_to_upgrade: user_owns_sites && Plausible.Billing.needs_to_upgrade?(user)
     )
   end

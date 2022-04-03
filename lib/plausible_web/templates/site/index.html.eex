@@ -1,9 +1,9 @@
 <script>
-    const SITES_PER_PAGE = 3;
+    const SITES_PER_PAGE = 18;
 
     function xVisitorsMessage(domain, visitors) {
       const nOfVisitors = visitors[domain] || '0'
-      const s = nOfVisitors !== 1 ? 's' : ''
+      const s = nOfVisitors !== '1' ? 's' : ''
       return `<b>${nOfVisitors}</b> visitor${s} in last 24h`
     }
 
@@ -69,7 +69,7 @@
     }
 </script>
 
-<div x-cloak x-data="{
+<div x-data="{
        selectedInvitation: null,
        invitationOpen: false,
        invitations: <%= Enum.map(@invitations, &({&1.invitation_id, &1})) |> Enum.into(%{}) |> Jason.encode! %>,
@@ -138,8 +138,7 @@
           </div>
           <div class="pl-8 mt-2 flex items-center justify-between">
             <span class="text-gray-600 dark:text-gray-400 text-sm truncate">
-              <span class="text-gray-800 dark:text-gray-200">
-                <b><%= PlausibleWeb.StatsView.large_number_format(Map.get(@visitors, invitation.site.domain, 0)) %></b> visitor<%= if Map.get(@visitors, invitation.site.domain, 0) != 1 do %>s<% end %> in last 24h
+              <span x-html="xVisitorsMessage('<%= invitation.site.domain %>', visitors)" class="text-gray-800 dark:text-gray-200">
               </span>
             </span>
           </div>

@@ -38,6 +38,8 @@ defmodule PlausibleWeb.SiteController do
 
     visitors =
       Plausible.Stats.Clickhouse.last_24h_visitors(sites ++ Enum.map(invitations, & &1.site))
+        |> Enum.map(fn {k, v} -> {k, PlausibleWeb.StatsView.large_number_format(v)} end )
+        |> Enum.into(%{})
 
     render(conn, "index.html",
       invitations: invitations,
